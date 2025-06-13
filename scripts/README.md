@@ -25,11 +25,11 @@ This script analyzes crashing inputs and associated fixes for bugs discovered in
 ## 📌 Usage
 
 ```bash
-git clone --branch analysis https://github.com/sysec-uic/ARVO-Meta.git; cd ARVO-Meta
-
+git clone --branch analysis https://github.com/sysec-uic/ARVO-Meta.git
+cd ARVO-Meta
 git clone https://gitlab.gnome.org/GNOME/libxml2.git
-cd scripts
-./analyze-bug.py -h
-./analyze-bug.py -id 42531092   # 42531092 is a bug in libxml2
+
+./scripts/analyze-bug.py -h
+./scripts/analyze-bug.py -id 42531092   # 42531092 is a bug in libxml2
 ```
 This will analyze the bug report with `localId` == 42531092 in the ARVO database.

@@ -6,9 +6,9 @@ import os
 import re
 
 # Paths
-DB_PATH = '../arvo.db'
-#DB_PATH = '../libxml2.db'
-REPO_PATH = '../libxml2'  # Adjust if the repo is in a subdirectory
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(SCRIPT_DIR, '..', 'arvo.db')
+REPO_PATH = os.path.join(SCRIPT_DIR, '..', 'libxml2')
 
 BUG_QUERY_ALL = "SELECT crash_type, crash_output, fix_commit FROM arvo WHERE project = 'libxml2';"
 BUG_QUERY_BY_ID = "SELECT crash_type, crash_output, fix_commit FROM arvo WHERE project = 'libxml2' AND localId = ?;"
