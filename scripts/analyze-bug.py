@@ -8,7 +8,6 @@ import re
 # Paths
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(SCRIPT_DIR, '..', 'arvo.db')
-REPO_PATH = os.path.join(SCRIPT_DIR, '..', 'libxml2')
 
 BUG_QUERY_ALL = "SELECT crash_type, crash_output, fix_commit FROM arvo WHERE project = 'libxml2';"
 BUG_QUERY_BY_ID = "SELECT crash_type, crash_output, fix_commit FROM arvo WHERE project = 'libxml2' AND localId = ?;"
@@ -37,10 +36,10 @@ def parse_top_stack_frame(stack_trace: str):
     return None, None
 
 # Get file snippet from commit
-def get_file_snippet_from_commit(commit, file_path, line_number, context=5):
+def get_file_snippet_from_commit(repo_path, commit, file_path, line_number, context=5):
     try:
         content = subprocess.check_output(
-            ['git', 'show', f'{commit}:{file_path}'],
+            ['git', '-C', repo_path, 'show', f'{commit}:{file_path}'],
             stderr=subprocess.DEVNULL
         ).decode().splitlines()
         start = max(0, line_number - context - 1)
@@ -50,9 +49,9 @@ def get_file_snippet_from_commit(commit, file_path, line_number, context=5):
         return f"⚠️ Could not retrieve {file_path} at {commit}"
 
 # Print colored patch for a commit
-def print_colored_patch(commit_hash: str):
+def print_colored_patch(repo_path, commit_hash: str):
     # Get the patch for the commit
-    patch = subprocess.check_output(['git', 'show', '--format=', commit_hash]).decode()
+    patch = subprocess.check_output(['git', '-C', repo_path, 'show', '--format=', commit_hash]).decode()
     print("Files changed in commit:")
     for line in patch.splitlines():
         if line.startswith("diff --git"):
@@ -67,59 +66,50 @@ def print_colored_patch(commit_hash: str):
             print(f"\033[90m{line}\033[0m")  # dim white
 
 # Analyze crashes reading from the database
-def analyze_crashes(target_rows=None):
-    # Store original repo state
-    os.chdir(REPO_PATH)
-    original_commit = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode().strip()
+def analyze_crashes(repo_path, target_rows=None):
+    for idx, (crash_type, crash_output, fix_commit) in enumerate(target_rows):
+        print(f"[#{idx}] Crash Type: {crash_type}\n")
+        
+        print("=== Call Stack ===")
+        print(extract_call_stack(crash_output))
+        
+        print("\nFix Commit:", fix_commit)
+        if not fix_commit:
+            print("❌ No fix_commit available\n" + "-" * 80)
+            continue
 
-    try:
-        for idx, (crash_type, crash_output, fix_commit) in enumerate(target_rows):
-            print(f"[#{idx}] Crash Type: {crash_type}\n")
-            
-            print("=== Call Stack ===")
-            print(extract_call_stack(crash_output))
-            
-            print("\nFix Commit:", fix_commit)
-            if not fix_commit:
-                print("❌ No fix_commit available\n" + "-" * 80)
-                continue
+        # Get parent commit (i.e., buggy version)
+        try:
+            parent_commit = subprocess.check_output(['git', '-C', repo_path, 'rev-parse', f'{fix_commit}^']).decode().strip()
+        except subprocess.CalledProcessError:
+            print("⚠️ Could not find parent commit.\n" + "-" * 80)
+            continue
+        print("Parent Commit:", parent_commit)
 
-            # Get parent commit (i.e., buggy version)
-            try:
-                parent_commit = subprocess.check_output(['git', 'rev-parse', f'{fix_commit}^']).decode().strip()
-            except subprocess.CalledProcessError:
-                print("⚠️ Could not find parent commit.\n" + "-" * 80)
-                continue
-            print("Parent Commit:", parent_commit)
+        # Extract file and line number from call stack
+        file, line = parse_top_stack_frame(extract_call_stack(crash_output))
+        if file:
+            snippet_lines = get_file_snippet_from_commit(repo_path, parent_commit, file, line).splitlines()
+            start_line = line - len(snippet_lines) // 2
 
-            # Extract file and line number from call stack
-            file, line = parse_top_stack_frame(extract_call_stack(crash_output))
-            if file:
-                snippet_lines = get_file_snippet_from_commit(parent_commit, file, line).splitlines()
-                start_line = line - len(snippet_lines) // 2
+            print(f"📍 Code near {file}:{line} at {parent_commit[:8]}:")
+            for i, code_line in enumerate(snippet_lines):
+                current_line = start_line + i
+                if current_line == line:
+                    print(f"\033[93m👉{code_line}\033[0m")  # yellow
+                else:
+                    print(f"\033[90m  {code_line}\033[0m")  # dim white
 
-                print(f"📍 Code near {file}:{line} at {parent_commit[:8]}:")
-                for i, code_line in enumerate(snippet_lines):
-                    current_line = start_line + i
-                    if current_line == line:
-                        print(f"\033[93m👉{code_line}\033[0m")  # yellow
-                    else:
-                        print(f"\033[90m  {code_line}\033[0m")  # dim white
-
-            # Print colored patch for the fix commit
-            print_colored_patch(fix_commit)
-            
-            print("-" * 80)
-
-    finally:
-        # Restore original HEAD
-        subprocess.call(['git', 'checkout', original_commit])
-        os.chdir('..')
+        # Print colored patch for the fix commit
+        print_colored_patch(repo_path, fix_commit)
+        
+        print("-" * 80)
 
 
 def main():
     parser = argparse.ArgumentParser(description="Analyze a specific crash by localId.")
     parser.add_argument('--id', '-id', type=int, required=True, help='Local bug ID from the database')
+    parser.add_argument('--repo', '-r', type=str, required=True, help='Path to the project repository')
     args = parser.parse_args()
 
     # Connect to database
@@ -137,7 +127,7 @@ def main():
             return
 
     # Analyze the specified crash or all crashes
-    analyze_crashes(target_rows)
+    analyze_crashes(args.repo, target_rows)
     
     cursor.close()
     conn.close()
