@@ -24,11 +24,10 @@ This script analyzes crashing inputs and associated fixes for bugs discovered in
 - `libxml2/` — the Git repository of the libxml2 project (should be initialized and contain all commit history)
 
 ## 📌 Usage
-**1. Prepare:** using `libxml2` as an example.
+**1. Prepare:** Clone only the latest commit of `ARVO-Meta` and then clone `libxml2` under it.
 
-Clone `libxml2` under the `ARVO-Meta` folder.
 ```bash
-git clone --branch analysis https://github.com/sysec-uic/ARVO-Meta.git
+git clone --depth 1 --branch analysis https://github.com/sysec-uic/ARVO-Meta.git
 cd ARVO-Meta
 git clone https://gitlab.gnome.org/GNOME/libxml2.git
 ```
