@@ -1,2 +1,4 @@
 libxml2*
+ffmpeg/
+openssl/
 .backup

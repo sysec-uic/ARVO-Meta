@@ -9,8 +9,7 @@ import re
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(SCRIPT_DIR, '..', 'arvo.db')
 
-BUG_QUERY_ALL = "SELECT crash_type, crash_output, fix_commit FROM arvo WHERE project = 'libxml2';"
-BUG_QUERY_BY_ID = "SELECT crash_type, crash_output, fix_commit FROM arvo WHERE project = 'libxml2' AND localId = ?;"
+BUG_QUERY_BY_ID = "SELECT crash_type, crash_output, fix_commit FROM arvo WHERE project = ? AND localId = ?;"
 
 # Extract call stack from crash output
 def extract_call_stack(log: str):
@@ -19,19 +18,18 @@ def extract_call_stack(log: str):
     return "\n".join(matches[:5])   # Limit to first 5 lines for brevity
 
 # Parse top stack frame to get file path and line number
-def parse_top_stack_frame(stack_trace: str):
+def parse_top_stack_frame(stack_trace: str, repo_name: str):
     lines = stack_trace.strip().splitlines()
     if not lines:
         return None, None
 
-    # Get the first line of the stack trace
     first = lines[0]
     match = re.search(r'in\s+.*?\s+(/src/(.*?):(\d+))', first)
     if match:
-        file_path = match.group(2)  # e.g., 'libxml2/HTMLparser.c'
-        if file_path.startswith("libxml2/"):
-            file_path = file_path[len("libxml2/"):] # e.g., 'HTMLparser.c'
-        line_number = int(match.group(3))  # e.g., 4886
+        file_path = match.group(2)
+        if file_path.startswith(f"{repo_name}/"):
+            file_path = file_path[len(repo_name) + 1:]  # Strip repo prefix and slash
+        line_number = int(match.group(3))
         return file_path, line_number
     return None, None
 
@@ -87,7 +85,7 @@ def analyze_crashes(repo_path, target_rows=None):
         print("Parent Commit:", parent_commit)
 
         # Extract file and line number from call stack
-        file, line = parse_top_stack_frame(extract_call_stack(crash_output))
+        file, line = parse_top_stack_frame(extract_call_stack(crash_output), os.path.basename(repo_path.rstrip('/')))
         if file:
             snippet_lines = get_file_snippet_from_commit(repo_path, parent_commit, file, line).splitlines()
             start_line = line - len(snippet_lines) // 2
@@ -107,20 +105,18 @@ def analyze_crashes(repo_path, target_rows=None):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Analyze a specific crash by localId.")
+    parser = argparse.ArgumentParser(description="Analyze a specific crash by localId and project.")
     parser.add_argument('--id', '-id', type=int, required=True, help='Local bug ID from the database')
     parser.add_argument('--repo', '-r', type=str, required=True, help='Path to the project repository')
+    parser.add_argument('--project', '-p', type=str, required=True, help='Project name in the database')
     args = parser.parse_args()
 
     # Connect to database
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    # Query crash_type, crash_output, fix_commit from libxml2 bugs
-    #cursor.execute(BUG_QUERY_ALL)
-    #rows = cursor.fetchall()
 
     if args.id is not None:
-        cursor.execute(BUG_QUERY_BY_ID, (args.id,))
+        cursor.execute(BUG_QUERY_BY_ID, (args.project, args.id))
         target_rows = cursor.fetchall()
         if not target_rows:
             print(f"No bug found with localId {args.id}")

@@ -41,9 +41,24 @@ This summarizes all bugs and patches associated with the `libxml2` project using
 
 **3. Analyze a Specific Bug:**
 
-The `analyze-bug.py` script requires the `--repo` or `-r` argument to specify the project repository directory.
+The `analyze-bug.py` script requires the `--repo` or `-r` argument to specify the project repository directory, `--project` or `-p` for the project name.
 
 ```bash
-./scripts/analyze-bug.py -r ./libxml2 -id 42531092   # 42531092 is a bug in libxml2
+./scripts/analyze-bug.py -r ./libxml2 -p libxml2 -id 42531092   # 42531092 is a bug in libxml2
 ```
-This will analyze the bug report with `localId` == 42531092 in the ARVO database, using the specified repository path to retrieve the faulty and fixed code.
+
+This will generate a bug/patch report with `localId` == 42531092 in the ARVO database, using the specified repository path to retrieve the buggy and fixed code.
+
+4. Analyze other repositories/bugs
+
+```bash
+git clone https://git.ffmpeg.org/ffmpeg.git
+./scripts/analyze-db.py -p ffmpeg -r ./ffmpeg -s
+./scripts/analyze-bug.py -r ./ffmpeg -p ffmpeg -id 42477749
+```
+
+```bash
+git clone https://gitlab.gnome.org/GNOME/libxml2.git
+./scripts/analyze-db.py -p openssl -r ./openssl -s
+./scripts/analyze-bug.py -r ./openssl -p openssl -id 42539799
+```
