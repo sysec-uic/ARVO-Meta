@@ -50,7 +50,7 @@ The `analyze-bug.py` script requires the `--repo` or `-r` argument to specify th
 
 This will generate a bug/patch report with `localId` == 42531092 in the ARVO database, using the specified repository path to retrieve the buggy and fixed code.
 
-4. Analyze other repositories/bugs
+**4. Analyze other repositories/bugs**
 
 ```bash
 git clone https://git.ffmpeg.org/ffmpeg.git
@@ -73,3 +73,32 @@ The `gen_bug_prompt.py` script creates LLM prompts from a given bug entry using 
 ```
 
 This will generate a textual prompt representing the bug and its context, useful for automated repair tools.
+
+**6. Run DynamoRIO inside the ARVO docker instance (TODO: Buggy not work as expected):**
+
+Download and set up `DynamoRIO` under the `scripts/bblogger` folder:
+```
+cd scripts/bblogger/
+wget https://github.com/DynamoRIO/dynamorio/releases/download/release_11.3.0-1/DynamoRIO-Linux-11.3.0.tar.gz
+tar xvf DynamoRIO-Linux-11.3.0.tar.gz
+mv DynamoRIO-Linux-11.3.0-1 drio-11
+make FULL=1
+```
+After `make FULL=1`, it will generate the `bblogger.so` file for recording code execution at the basic block level.
+
+Let's use a `libxml2` bug (`#42528804`) as an example:
+```
+docker run -v $(pwd):/tools/bblogger \
+  --user $(id -u):$(id -g) \
+  --rm -it n132/arvo:42528804-vul \
+  bash -c "cd /tools/bblogger && ./drio-11/bin64/drrun -c ./bblogger.so -- /out/xslt /tmp/poc"
+```
+At this point, a `bbtrace.log` file should be generated under `scripts/bblogger`. This log records each module loaded by the target program and lists the addresses of the executed code blocks.
+
+We can also use the `symbolize_trace.py` script to get the code location of these code blocks:
+```
+docker run -v $(pwd):/tools/bblogger \
+  --user $(id -u):$(id -g) \
+  --rm -it n132/arvo:42528804-vul \
+  bash -c "cd /tools/bblogger && python3 symbolize_trace.py -b /out/xslt -t ./bbtrace.log -m xslt"
+```

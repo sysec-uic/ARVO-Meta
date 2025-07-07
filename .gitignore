@@ -4,3 +4,6 @@ openssl/
 .backup
 crash_log.txt
 llm_bug_prompt.txt
+.gdb_history
+.venv/
+.vscode/
