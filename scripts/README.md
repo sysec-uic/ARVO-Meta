@@ -33,14 +33,14 @@ cd ARVO-Meta
 git clone https://gitlab.gnome.org/GNOME/libxml2.git
 ```
 
-**2. Analyze All Bugs by Project:**
+**2. Analyze All Bugs by Project**
 ```bash
 ./scripts/analyze-db.py -h
 ./scripts/analyze-db.py -p libxml2 -r ./libxml2 -s
 ```
 This summarizes all bugs and patches associated with the `libxml2` project using the repository at `./libxml2`, categorizing them by lines and files changed and optionally displaying `localId`s (using `-s` or `--show-ids`).
 
-**3. Analyze a Specific Bug:**
+**3. Analyze a Specific Bug**
 
 The `analyze-bug.py` script requires the `--repo` or `-r` argument to specify the project repository directory, `--project` or `-p` for the project name.
 
@@ -64,7 +64,7 @@ git clone https://gitlab.gnome.org/GNOME/libxml2.git
 ./scripts/analyze-bug.py -r ./openssl -p openssl -id 42539799
 ```
 
-**5. Generate Prompt for a Bug:**
+**5. Generate an LLM Prompt for a Bug**
 
 The `gen_bug_prompt.py` script creates LLM prompts from a given bug entry using the ARVO docker instance and project repository.
 
@@ -105,19 +105,33 @@ docker run -v $(pwd):/tools/bblogger \
 ```
 -->
 
-**6. Dynamic Trace Program Execution using Intel PIN tools (TODO: Not Finished):**
+**6. Dynamic Trace Program Execution using Intel PIN tools**
 
-Set up the PIN and pintool:
+**Step 1:** Set up Intel PIN and the basic block tracing pintool:
 ```
 ./setup_pin_bbtrace.sh
 ```
 
+**Step 2:** Trace the basic blocks executed in `xslt` (we used `n132/arvo:42528804-vul` as an example; replace `xslt` with other execute name if necessary):
 ```
-pin-3.31/pin -t pin-3.31/source/tools/MyPinTool/obj-intel64/bbtrace.so -- ./xslt poc
+pin-3.31/pin -t pin-3.31/source/tools/MyPinTool/obj-intel64/bbtrace.so -mod xslt -- ./xslt poc
 ```
 
+**Step 3:** Convert addresses into source code `function name` + `line numbers`:
 ```
-grep xslt pin_bbtrace.log > xslt_bbtrace.log
-nm xslt | awk '$2 == "T" || $2 == "t"' | grep -vE '(_ZN10__|__sanitizer|_Z|fuzzer|ubsan|msan|interceptor|LLVM)' \
-    | awk '{print $1, $3}' > functions.txt
+llvm-addr2line-14 -e ./xslt -f -C -p < pin_bbtrace.log > pin_bbtrace_line.log
+grep -Ev "llvm-project|__asan|Fuzzer|_init|msan" pin_bbtrace_line.log > xslt.log
+```
+Now, you should get a file named `xslt.log`, which contains code executed before the crash:
+
+```
+$ tail -n 100 xslt.log
+...
+xmlParseStartTag2 at /src/libxml2/parser.c:9916
+xmlParseStartTag2 at /src/libxml2/parser.c:0
+xmlParseStartTag2 at /src/libxml2/parser.c:9916
+xmlParseStartTag2 at /src/libxml2/parser.c:9916
+xmlParserNsLookupUri at /src/libxml2/parser.c:0
+xmlParserNsLookupUri at /src/libxml2/parser.c:0
+xmlParserNsLookupUri at /src/libxml2/parser.c:1530
 ```
