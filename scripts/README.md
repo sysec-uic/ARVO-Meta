@@ -74,6 +74,7 @@ The `gen_bug_prompt.py` script creates LLM prompts from a given bug entry using 
 
 This will generate a textual prompt representing the bug and its context, useful for automated repair tools.
 
+<!--
 **6. Run DynamoRIO inside the ARVO docker instance (TODO: Buggy not work as expected):**
 
 Download and set up `DynamoRIO` under the `scripts/bblogger` folder:
@@ -101,4 +102,22 @@ docker run -v $(pwd):/tools/bblogger \
   --user $(id -u):$(id -g) \
   --rm -it n132/arvo:42528804-vul \
   bash -c "cd /tools/bblogger && python3 symbolize_trace.py -b /out/xslt -t ./bbtrace.log -m xslt"
+```
+-->
+
+**6. Dynamic Trace Program Execution using Intel PIN tools (TODO: Not Finished):**
+
+Set up the PIN and pintool:
+```
+./setup_pin_bbtrace.sh
+```
+
+```
+pin-3.31/pin -t pin-3.31/source/tools/MyPinTool/obj-intel64/bbtrace.so -- ./xslt poc
+```
+
+```
+grep xslt pin_bbtrace.log > xslt_bbtrace.log
+nm xslt | awk '$2 == "T" || $2 == "t"' | grep -vE '(_ZN10__|__sanitizer|_Z|fuzzer|ubsan|msan|interceptor|LLVM)' \
+    | awk '{print $1, $3}' > functions.txt
 ```
