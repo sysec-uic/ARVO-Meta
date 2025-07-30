@@ -20,9 +20,9 @@ This script analyzes crashing inputs and associated fixes for bugs discovered in
 
 - `analyze-db.py` — summarizes all bugs and patches by a specific project using the `fix_commit` from `ARVO.db`
 - `analyze-bug.py` — the main analysis script
-- `arvo.db` — the SQLite database containing crash and patch info
 - `gen_bug_prompt.py` — generates LLM-ready prompts from ARVO bug data for patch generation or analysis
-- `libxml2/` or other project's repo — the Git repository of the `libxml2` project (should be initialized and contain all commit history)
+- `arvo.db` — the SQLite database containing crash and patch info
+-  Target projects' Git repositories (e.g., `libxml2`, `ffmpeg`, `openssl`)
 
 ## 📌 Usage
 **1. Prepare:** Clone only the latest commit of `ARVO-Meta` and then clone `libxml2` under it.
@@ -59,12 +59,13 @@ git clone https://git.ffmpeg.org/ffmpeg.git
 ```
 
 ```bash
-git clone https://gitlab.gnome.org/GNOME/libxml2.git
+git clone https://github.com/openssl/openssl.git
 ./scripts/analyze-db.py -p openssl -r ./openssl -s
 ./scripts/analyze-bug.py -r ./openssl -p openssl -id 42539799
 ```
 
 **5. Generate an LLM Prompt for a Bug**
+(For manual experiment usage: this can be converted using LLM APIs)
 
 The `gen_bug_prompt.py` script creates LLM prompts from a given bug entry using the ARVO docker instance and project repository.
 

@@ -13,7 +13,7 @@ BUG_QUERY_BY_ID = "SELECT crash_type, crash_output, fix_commit FROM arvo WHERE p
 
 # Extract call stack from crash output
 def extract_call_stack(log: str, num_frames: int = 5):
-    call_stack_pattern = re.compile(r'^\s*#\d+\s+0x[0-9a-f]+\s+in\s+.*$', re.MULTILINE)
+    call_stack_pattern = re.compile(r'#\d+\s+0x[0-9a-f]+\s+in\s+.*')
     matches = call_stack_pattern.findall(log)
     return "\n".join(matches[:num_frames])   # Limit to first num_frames lines for brevity
 
