@@ -7,3 +7,7 @@ llm_bug_prompt.txt
 .gdb_history
 .venv/
 .vscode/
+pin*
+xslt*
+poc
+Archive/
